@@ -240,20 +240,20 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
           className="image-rendering-pixelated"
           style={{ imageRendering: 'pixelated' }}
         />
-        {/* Hover highlight */}
-        {hoveredPixel && scale >= 2 && (
-          <div
-            className="absolute border-2 border-white pointer-events-none"
-            style={{
-              left: hoveredPixel.x,
-              top: hoveredPixel.y,
-              width: 1,
-              height: 1,
-              boxShadow: '0 0 0 1px rgba(0,0,0,0.5)',
-            }}
-          />
-        )}
       </div>
+      {/* Hover highlight - positioned outside scaled container */}
+      {hoveredPixel && scale >= 2 && (
+        <div
+          className="absolute border-2 border-white pointer-events-none"
+          style={{
+            left: offset.x + hoveredPixel.x * scale,
+            top: offset.y + hoveredPixel.y * scale,
+            width: scale,
+            height: scale,
+            boxShadow: '0 0 0 1px rgba(0,0,0,0.5)',
+          }}
+        />
+      )}
 
       {/* Zoom indicator */}
       <div className="absolute bottom-4 left-4 bg-gray-800/80 px-3 py-1 rounded text-sm">
