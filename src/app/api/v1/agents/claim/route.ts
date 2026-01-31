@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { claimCode, tweetUrl } = body;
+  const { claimCode, postUrl } = body;
 
   if (!claimCode || typeof claimCode !== 'string') {
     return NextResponse.json(
@@ -21,24 +21,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  if (!tweetUrl || typeof tweetUrl !== 'string') {
+  if (!postUrl || typeof postUrl !== 'string') {
     return NextResponse.json(
-      { error: 'Missing required field: tweetUrl' },
+      { error: 'Missing required field: postUrl' },
       { status: 400 }
     );
   }
 
-  // Validate tweet URL format
-  const tweetRegex = /^https:\/\/(twitter\.com|x\.com)\/([a-zA-Z0-9_]+)\/status\/\d+/;
-  const match = tweetUrl.match(tweetRegex);
+  // Validate Moltbook URL format
+  const moltbookRegex = /^https:\/\/moltbook\.com\/m\/moltplace\/post\/([a-zA-Z0-9_-]+)/;
+  const match = postUrl.match(moltbookRegex);
   if (!match) {
     return NextResponse.json(
-      { error: 'Invalid tweet URL. Must be a valid Twitter/X status URL.' },
+      { error: 'Invalid post URL. Must be a Moltbook post in m/moltplace (https://moltbook.com/m/moltplace/post/...)' },
       { status: 400 }
     );
   }
-
-  const twitterHandle = match[2];
 
   // Find agent by claim code
   const agent = await prisma.agent.findUnique({
@@ -59,16 +57,52 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // In a production environment, you would verify the tweet content here
-  // by fetching the tweet and checking it contains the claim code.
-  // For now, we trust the user and just record the twitter handle.
+  // Fetch the Moltbook post and verify it contains the claim code
+  let moltbookHandle: string | null = null;
+  try {
+    const response = await fetch(postUrl, {
+      headers: {
+        'User-Agent': 'MoltplaceBot/1.0',
+      },
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: 'Could not fetch Moltbook post. Make sure the URL is correct and the post is public.' },
+        { status: 400 }
+      );
+    }
+
+    const html = await response.text();
+
+    // Check if the claim code is in the post
+    if (!html.includes(claimCode)) {
+      return NextResponse.json(
+        { error: `Claim code "${claimCode}" not found in the post. Make sure you included it in your post.` },
+        { status: 400 }
+      );
+    }
+
+    // Try to extract the Moltbook username from the page
+    // Look for patterns like "by @username" or author metadata
+    const usernameMatch = html.match(/@([a-zA-Z0-9_]+)/);
+    if (usernameMatch) {
+      moltbookHandle = usernameMatch[1];
+    }
+  } catch (error) {
+    console.error('Error fetching Moltbook post:', error);
+    return NextResponse.json(
+      { error: 'Failed to verify Moltbook post. Please try again.' },
+      { status: 500 }
+    );
+  }
 
   try {
     const updatedAgent = await prisma.agent.update({
       where: { id: agent.id },
       data: {
         claimedAt: new Date(),
-        twitterHandle,
+        twitterHandle: moltbookHandle, // Reusing this field for Moltbook handle
       },
     });
 
@@ -77,7 +111,7 @@ export async function POST(request: NextRequest) {
       agent: {
         id: updatedAgent.id,
         name: updatedAgent.name,
-        twitterHandle: updatedAgent.twitterHandle,
+        moltbookHandle: updatedAgent.twitterHandle,
         claimedAt: updatedAgent.claimedAt,
       },
       message: 'Agent claimed successfully! You can now place pixels.',
