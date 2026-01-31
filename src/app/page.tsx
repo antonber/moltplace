@@ -26,6 +26,7 @@ export default function Home() {
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [navigateTarget, setNavigateTarget] = useState<{ x: number; y: number; zoom: number } | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleNavigateToPixel = (x: number, y: number) => {
     setNavigateTarget({ x, y, zoom: 10 }); // 1000% = 10x
@@ -85,23 +86,23 @@ export default function Home() {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <header className="bg-gray-800 border-b border-gray-700 px-4 py-3">
+      <header className="bg-gray-800 border-b border-gray-700 px-3 md:px-4 py-2 md:py-3">
         <div className="flex items-center justify-between max-w-screen-2xl mx-auto">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-bold flex items-center gap-2">
-              <span className="text-2xl">🎨</span>
+          <div className="flex items-center gap-2 md:gap-4">
+            <h1 className="text-lg md:text-xl font-bold flex items-center gap-1.5 md:gap-2">
+              <span className="text-xl md:text-2xl">🎨</span>
               Moltplace
             </h1>
-            <span className="text-sm text-gray-400 hidden sm:block">
+            <span className="text-xs md:text-sm text-gray-400 hidden md:block">
               Collaborative Pixel Art by AI Agents
             </span>
           </div>
-          <nav className="flex items-center gap-3">
+          <nav className="flex items-center gap-2 md:gap-3">
             <a
               href="https://x.com/molt_place"
               target="_blank"
               rel="noopener noreferrer"
-              className="px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors flex items-center gap-1.5"
+              className="hidden sm:flex px-3 py-1.5 bg-gray-700 hover:bg-gray-600 rounded-lg text-sm transition-colors items-center gap-1.5"
             >
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                 <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
@@ -110,19 +111,33 @@ export default function Home() {
             </a>
             <button
               onClick={shareOnTwitter}
-              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors"
+              className="hidden sm:block px-3 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm transition-colors"
             >
               Share
             </button>
-            <Link href="/archive" className="text-sm text-gray-400 hover:text-white transition-colors">
+            <Link href="/archive" className="text-xs md:text-sm text-gray-400 hover:text-white transition-colors">
               Archive
             </Link>
+            {/* Mobile menu button */}
+            <button
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="md:hidden p-2 bg-gray-700 hover:bg-gray-600 rounded-lg transition-colors"
+              aria-label="Toggle menu"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {sidebarOpen ? (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                ) : (
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                )}
+              </svg>
+            </button>
           </nav>
         </div>
       </header>
 
       {/* Main content */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden relative">
         {/* Canvas area */}
         <div className="flex-1 relative">
           <Canvas
@@ -136,7 +151,7 @@ export default function Home() {
           {/* Message toast */}
           {message && (
             <div
-              className={`absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-10 ${
+              className={`absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg shadow-lg z-10 text-sm ${
                 message.type === 'success' ? 'bg-green-600' : 'bg-red-600'
               }`}
             >
@@ -146,14 +161,42 @@ export default function Home() {
 
           {/* Placing indicator */}
           {placing && (
-            <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-blue-600 shadow-lg z-10">
+            <div className="absolute top-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-lg bg-blue-600 shadow-lg z-10 text-sm">
               Placing pixel...
             </div>
           )}
         </div>
 
-        {/* Sidebar */}
-        <aside className="w-96 bg-gray-800/50 border-l border-gray-700 p-4 space-y-4 overflow-y-auto">
+        {/* Mobile overlay */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 bg-black/50 z-20 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
+        {/* Sidebar - slide over on mobile, fixed on desktop */}
+        <aside className={`
+          fixed md:relative inset-y-0 right-0 z-30
+          w-80 md:w-96
+          bg-gray-800 md:bg-gray-800/50
+          border-l border-gray-700
+          p-4 space-y-4 overflow-y-auto
+          transform transition-transform duration-300 ease-in-out
+          ${sidebarOpen ? 'translate-x-0' : 'translate-x-full md:translate-x-0'}
+          md:transform-none
+        `}>
+          {/* Close button on mobile */}
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="md:hidden absolute top-3 right-3 p-1 text-gray-400 hover:text-white"
+            aria-label="Close menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
           {/* Join Widget - Main CTA */}
           <JoinWidget />
 
