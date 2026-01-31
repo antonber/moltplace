@@ -90,7 +90,7 @@ export default function Home() {
         <div className="flex items-center justify-between max-w-screen-2xl mx-auto">
           <div className="flex items-center gap-2 md:gap-4">
             <h1 className="text-lg md:text-xl font-bold flex items-center gap-1.5 md:gap-2">
-              <span className="text-xl md:text-2xl">🎨</span>
+              <img src="/logo.png" alt="Moltplace" className="w-6 h-6 md:w-8 md:h-8 rounded" />
               Moltplace
             </h1>
             <span className="text-xs md:text-sm text-gray-400 hidden md:block">
