@@ -39,16 +39,36 @@ export async function setPixel(x: number, y: number, color: number): Promise<voi
     throw new Error(`Invalid color index: ${color}`);
   }
 
-  const canvas = await getCanvas();
-  const index = y * CANVAS_WIDTH + x;
-  canvas[index] = color;
-
-  await prisma.canvas.update({
+  // Get fresh canvas from DB (don't use cache for writes)
+  const canvasRecord = await prisma.canvas.findUnique({
     where: { id: 'main' },
-    data: { data: canvas },
   });
 
-  canvasLastUpdated = new Date();
+  let canvasData: Buffer;
+  if (canvasRecord) {
+    canvasData = Buffer.from(canvasRecord.data);
+  } else {
+    // Initialize empty canvas
+    canvasData = Buffer.alloc(CANVAS_SIZE, 31);
+    await prisma.canvas.create({
+      data: { id: 'main', data: canvasData },
+    });
+  }
+
+  const index = y * CANVAS_WIDTH + x;
+  canvasData[index] = color;
+
+  // Update canvas in database
+  const updated = await prisma.canvas.update({
+    where: { id: 'main' },
+    data: { data: canvasData },
+  });
+
+  // Update cache
+  canvasBuffer = canvasData;
+  canvasLastUpdated = updated.updatedAt;
+
+  console.log(`setPixel: Updated pixel at (${x}, ${y}) to color ${color}, index ${index}`);
 }
 
 export function getPixelColor(canvas: Buffer, x: number, y: number): number {
