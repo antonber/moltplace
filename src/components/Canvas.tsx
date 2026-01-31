@@ -20,9 +20,11 @@ interface CanvasProps {
   selectedColor: number;
   onPixelClick: (x: number, y: number) => void;
   onPixelHover: (info: PixelInfo | null) => void;
+  navigateTarget?: { x: number; y: number; zoom: number } | null;
+  onNavigateComplete?: () => void;
 }
 
-export default function Canvas({ selectedColor: _selectedColor, onPixelClick, onPixelHover }: CanvasProps) {
+export default function Canvas({ selectedColor: _selectedColor, onPixelClick, onPixelHover, navigateTarget, onNavigateComplete }: CanvasProps) {
   // selectedColor is available for future use (e.g., cursor preview)
   void _selectedColor;
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -189,6 +191,31 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
       }
     }
   }, [isDragging, dragStart, offset, getPixelCoords, onPixelClick]);
+
+  // Handle navigation to target pixel
+  useEffect(() => {
+    if (!navigateTarget || !containerRef.current) return;
+
+    const container = containerRef.current;
+    const rect = container.getBoundingClientRect();
+
+    // Set the new scale
+    const newScale = navigateTarget.zoom;
+    setScale(newScale);
+
+    // Center the target pixel in the viewport
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+
+    // Calculate offset to center the pixel
+    const newOffsetX = centerX - (navigateTarget.x + 0.5) * newScale;
+    const newOffsetY = centerY - (navigateTarget.y + 0.5) * newScale;
+
+    setOffset({ x: newOffsetX, y: newOffsetY });
+
+    // Notify that navigation is complete
+    onNavigateComplete?.();
+  }, [navigateTarget, onNavigateComplete]);
 
   // Fetch pixel info on hover
   useEffect(() => {

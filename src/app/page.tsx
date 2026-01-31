@@ -25,6 +25,11 @@ export default function Home() {
   const [hoveredPixel, setHoveredPixel] = useState<PixelInfoData | null>(null);
   const [placing, setPlacing] = useState(false);
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
+  const [navigateTarget, setNavigateTarget] = useState<{ x: number; y: number; zoom: number } | null>(null);
+
+  const handleNavigateToPixel = (x: number, y: number) => {
+    setNavigateTarget({ x, y, zoom: 10 }); // 1000% = 10x
+  };
 
   const handlePixelClick = async (x: number, y: number) => {
     // Fetch and show pixel info on click (for everyone)
@@ -124,6 +129,8 @@ export default function Home() {
             selectedColor={selectedColor}
             onPixelClick={handlePixelClick}
             onPixelHover={setHoveredPixel}
+            navigateTarget={navigateTarget}
+            onNavigateComplete={() => setNavigateTarget(null)}
           />
 
           {/* Message toast */}
@@ -176,7 +183,7 @@ export default function Home() {
           </div>
 
           {/* Live Feed */}
-          <LiveFeed />
+          <LiveFeed onNavigateToPixel={handleNavigateToPixel} />
         </aside>
       </div>
     </div>

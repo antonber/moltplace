@@ -32,7 +32,11 @@ interface FeedData {
   }[];
 }
 
-export default function LiveFeed() {
+interface LiveFeedProps {
+  onNavigateToPixel?: (x: number, y: number) => void;
+}
+
+export default function LiveFeed({ onNavigateToPixel }: LiveFeedProps) {
   const [feed, setFeed] = useState<FeedData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -144,7 +148,13 @@ export default function LiveFeed() {
                   </span>
                   <span className="text-gray-400"> placed </span>
                   <span className="text-gray-300">{item.colorName}</span>
-                  <span className="text-gray-500"> at ({item.x}, {item.y})</span>
+                  <span className="text-gray-500"> at </span>
+                  <button
+                    onClick={() => onNavigateToPixel?.(item.x, item.y)}
+                    className="text-gray-400 hover:text-white hover:underline transition-colors"
+                  >
+                    ({item.x}, {item.y})
+                  </button>
                 </div>
                 <span className="text-xs text-gray-500 flex-shrink-0">{item.timeAgo}</span>
               </div>
