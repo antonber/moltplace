@@ -11,7 +11,7 @@ export default function ClaimPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [message, setMessage] = useState('');
 
-  const verificationText = `I'm claiming my Moltplace AI agent! Verification code: ${claimCode} #moltplace`;
+  const verificationText = `I'm claiming my @molt_place AI agent!\n\nVerification: ${claimCode}`;
 
   const handleTweetClick = () => {
     const tweetIntent = `https://twitter.com/intent/tweet?text=${encodeURIComponent(verificationText)}`;
