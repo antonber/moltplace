@@ -36,6 +36,15 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [hoveredPixel, setHoveredPixel] = useState<{ x: number; y: number } | null>(null);
 
+  // Touch state for pinch zoom
+  const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
+  const lastPinchDistRef = useRef<number | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Ruler sizes
+  const RULER_TOP = 24; // h-6 = 24px
+  const RULER_LEFT = 32; // w-8 = 32px
+
   // Fetch canvas data
   const fetchCanvas = useCallback(async () => {
     try {
@@ -108,11 +117,11 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
     const delta = -e.deltaY * 0.001;
     const newScale = Math.max(0.5, Math.min(20, scale * (1 + delta)));
 
-    // Zoom towards mouse position
+    // Zoom towards mouse position (adjusted for ruler)
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
+      const mouseX = e.clientX - rect.left - RULER_LEFT;
+      const mouseY = e.clientY - rect.top - RULER_TOP;
 
       const scaleChange = newScale / scale;
       setOffset({
@@ -137,8 +146,9 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return null;
 
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
+    // Adjust for ruler offset
+    const mouseX = e.clientX - rect.left - RULER_LEFT;
+    const mouseY = e.clientY - rect.top - RULER_TOP;
 
     const x = Math.floor((mouseX - offset.x) / scale);
     const y = Math.floor((mouseY - offset.y) / scale);
@@ -153,17 +163,26 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
   // Handle mouse down
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (e.button === 0) {
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const mouseX = e.clientX - rect.left - RULER_LEFT;
+      const mouseY = e.clientY - rect.top - RULER_TOP;
       setIsDragging(true);
-      setDragStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
+      setDragStart({ x: mouseX - offset.x, y: mouseY - offset.y });
     }
   }, [offset]);
 
   // Handle mouse move
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const mouseX = e.clientX - rect.left - RULER_LEFT;
+    const mouseY = e.clientY - rect.top - RULER_TOP;
+
     if (isDragging) {
       setOffset({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y,
+        x: mouseX - dragStart.x,
+        y: mouseY - dragStart.y,
       });
     } else {
       const coords = getPixelCoords(e);
@@ -180,9 +199,13 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
   const handleMouseUp = useCallback((e: React.MouseEvent) => {
     if (isDragging) {
       setIsDragging(false);
+      const rect = containerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const mouseX = e.clientX - rect.left - RULER_LEFT;
+      const mouseY = e.clientY - rect.top - RULER_TOP;
       // Check if it was a click (minimal movement)
-      const dx = Math.abs(e.clientX - dragStart.x - offset.x);
-      const dy = Math.abs(e.clientY - dragStart.y - offset.y);
+      const dx = Math.abs(mouseX - dragStart.x - offset.x);
+      const dy = Math.abs(mouseY - dragStart.y - offset.y);
       if (dx < 5 && dy < 5) {
         const coords = getPixelCoords(e);
         if (coords) {
@@ -191,6 +214,95 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
       }
     }
   }, [isDragging, dragStart, offset, getPixelCoords, onPixelClick]);
+
+  // Touch event handlers for mobile
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    if (e.touches.length === 1) {
+      // Single touch - prepare for pan or tap
+      const touch = e.touches[0];
+      const touchX = touch.clientX - rect.left - RULER_LEFT;
+      const touchY = touch.clientY - rect.top - RULER_TOP;
+      lastTouchRef.current = { x: touchX, y: touchY };
+      touchStartPosRef.current = { x: touchX, y: touchY };
+      setDragStart({ x: touchX - offset.x, y: touchY - offset.y });
+    } else if (e.touches.length === 2) {
+      // Two fingers - prepare for pinch zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastPinchDistRef.current = Math.sqrt(dx * dx + dy * dy);
+    }
+  }, [offset]);
+
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    e.preventDefault();
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    if (e.touches.length === 1 && lastTouchRef.current) {
+      // Single finger pan
+      const touch = e.touches[0];
+      const touchX = touch.clientX - rect.left - RULER_LEFT;
+      const touchY = touch.clientY - rect.top - RULER_TOP;
+      setOffset({
+        x: touchX - dragStart.x,
+        y: touchY - dragStart.y,
+      });
+      lastTouchRef.current = { x: touchX, y: touchY };
+    } else if (e.touches.length === 2 && lastPinchDistRef.current !== null) {
+      // Pinch zoom
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      const scaleFactor = dist / lastPinchDistRef.current;
+      const newScale = Math.max(0.5, Math.min(20, scale * scaleFactor));
+
+      // Zoom towards center of pinch
+      const centerX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const centerY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+      const pinchX = centerX - rect.left - RULER_LEFT;
+      const pinchY = centerY - rect.top - RULER_TOP;
+      const scaleChange = newScale / scale;
+
+      setOffset({
+        x: pinchX - (pinchX - offset.x) * scaleChange,
+        y: pinchY - (pinchY - offset.y) * scaleChange,
+      });
+
+      setScale(newScale);
+      lastPinchDistRef.current = dist;
+    }
+  }, [dragStart, scale, offset]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+
+    // Check if it was a tap (minimal movement)
+    if (touchStartPosRef.current && lastTouchRef.current && e.changedTouches.length === 1 && rect) {
+      const touch = e.changedTouches[0];
+      const touchX = touch.clientX - rect.left - RULER_LEFT;
+      const touchY = touch.clientY - rect.top - RULER_TOP;
+      const dx = Math.abs(touchX - touchStartPosRef.current.x);
+      const dy = Math.abs(touchY - touchStartPosRef.current.y);
+
+      if (dx < 10 && dy < 10) {
+        // It was a tap - get pixel coords and trigger click
+        const x = Math.floor((touchX - offset.x) / scale);
+        const y = Math.floor((touchY - offset.y) / scale);
+
+        if (x >= 0 && x < CANVAS_WIDTH && y >= 0 && y < CANVAS_HEIGHT) {
+          onPixelClick(x, y);
+        }
+      }
+    }
+
+    lastTouchRef.current = null;
+    lastPinchDistRef.current = null;
+    touchStartPosRef.current = null;
+  }, [offset, scale, onPixelClick]);
 
   // Handle navigation to target pixel
   useEffect(() => {
@@ -237,10 +349,44 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
     return () => clearTimeout(debounce);
   }, [hoveredPixel, onPixelHover]);
 
+  // Calculate visible range for rulers
+  const getVisibleRange = useCallback(() => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { startX: 0, endX: CANVAS_WIDTH, startY: 0, endY: CANVAS_HEIGHT };
+
+    const startX = Math.max(0, Math.floor(-offset.x / scale));
+    const endX = Math.min(CANVAS_WIDTH, Math.ceil((rect.width - offset.x) / scale));
+    const startY = Math.max(0, Math.floor(-offset.y / scale));
+    const endY = Math.min(CANVAS_HEIGHT, Math.ceil((rect.height - offset.y) / scale));
+
+    return { startX, endX, startY, endY };
+  }, [offset, scale]);
+
+  const visibleRange = getVisibleRange();
+
+  // Generate ruler ticks
+  const getRulerTicks = (start: number, end: number) => {
+    const ticks: number[] = [];
+    // Adjust tick interval based on zoom
+    let interval = 100;
+    if (scale >= 4) interval = 50;
+    if (scale >= 8) interval = 10;
+    if (scale < 1) interval = 200;
+
+    const firstTick = Math.ceil(start / interval) * interval;
+    for (let i = firstTick; i <= end; i += interval) {
+      ticks.push(i);
+    }
+    return ticks;
+  };
+
+  const xTicks = getRulerTicks(visibleRange.startX, visibleRange.endX);
+  const yTicks = getRulerTicks(visibleRange.startY, visibleRange.endY);
+
   return (
     <div
       ref={containerRef}
-      className="canvas-container relative w-full h-full overflow-hidden bg-gray-950 cursor-crosshair"
+      className="canvas-container relative w-full h-full overflow-hidden bg-gray-950 cursor-crosshair touch-none"
       onMouseDown={handleMouseDown}
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -249,43 +395,80 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
         setHoveredPixel(null);
         onPixelHover(null);
       }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
-      <div
-        style={{
-          transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
-          transformOrigin: '0 0',
-        }}
-      >
-        <canvas
-          ref={canvasRef}
-          width={CANVAS_WIDTH}
-          height={CANVAS_HEIGHT}
-          className="image-rendering-pixelated"
-          style={{ imageRendering: 'pixelated' }}
-        />
+      {/* Horizontal ruler (top) */}
+      <div className="absolute top-0 left-0 right-0 h-6 bg-gray-900/90 border-b border-gray-700 z-10 overflow-hidden pointer-events-none">
+        {xTicks.map(tick => (
+          <div
+            key={`x-${tick}`}
+            className="absolute top-0 h-full flex flex-col items-center justify-end"
+            style={{ left: offset.x + tick * scale }}
+          >
+            <span className="text-[10px] text-gray-400 mb-0.5">{tick}</span>
+            <div className="w-px h-2 bg-gray-500" />
+          </div>
+        ))}
       </div>
-      {/* Hover highlight - positioned outside scaled container */}
-      {hoveredPixel && scale >= 2 && (
+
+      {/* Vertical ruler (left) */}
+      <div className="absolute top-6 left-0 bottom-0 w-8 bg-gray-900/90 border-r border-gray-700 z-10 overflow-hidden pointer-events-none">
+        {yTicks.map(tick => (
+          <div
+            key={`y-${tick}`}
+            className="absolute left-0 w-full flex items-center justify-end pr-1"
+            style={{ top: offset.y + tick * scale - 6 }}
+          >
+            <span className="text-[10px] text-gray-400">{tick}</span>
+          </div>
+        ))}
+      </div>
+
+      {/* Corner block */}
+      <div className="absolute top-0 left-0 w-8 h-6 bg-gray-900 border-b border-r border-gray-700 z-20" />
+
+      {/* Canvas container - offset by ruler size */}
+      <div className="absolute top-6 left-8 right-0 bottom-0 overflow-hidden">
         <div
-          className="absolute border-2 border-white pointer-events-none"
           style={{
-            left: offset.x + hoveredPixel.x * scale,
-            top: offset.y + hoveredPixel.y * scale,
-            width: scale,
-            height: scale,
-            boxShadow: '0 0 0 1px rgba(0,0,0,0.5)',
+            transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+            transformOrigin: '0 0',
           }}
-        />
-      )}
+        >
+          <canvas
+            ref={canvasRef}
+            width={CANVAS_WIDTH}
+            height={CANVAS_HEIGHT}
+            className="image-rendering-pixelated"
+            style={{ imageRendering: 'pixelated' }}
+          />
+        </div>
+
+        {/* Hover highlight - positioned outside scaled container */}
+        {hoveredPixel && scale >= 2 && (
+          <div
+            className="absolute border-2 border-white pointer-events-none"
+            style={{
+              left: offset.x + hoveredPixel.x * scale,
+              top: offset.y + hoveredPixel.y * scale,
+              width: scale,
+              height: scale,
+              boxShadow: '0 0 0 1px rgba(0,0,0,0.5)',
+            }}
+          />
+        )}
+      </div>
 
       {/* Zoom indicator */}
-      <div className="absolute bottom-4 left-4 bg-gray-800/80 px-3 py-1 rounded text-sm">
+      <div className="absolute bottom-4 left-12 bg-gray-800/80 px-3 py-1 rounded text-sm z-20">
         {Math.round(scale * 100)}%
       </div>
 
       {/* Coordinates */}
       {hoveredPixel && (
-        <div className="absolute bottom-4 right-4 bg-gray-800/80 px-3 py-1 rounded text-sm">
+        <div className="absolute bottom-4 right-4 bg-gray-800/80 px-3 py-1 rounded text-sm z-20">
           ({hoveredPixel.x}, {hoveredPixel.y})
         </div>
       )}
