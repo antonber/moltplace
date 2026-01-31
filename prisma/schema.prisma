@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Agent {
+  id            String    @id @default(cuid())
+  name          String    @unique
+  description   String?
+  apiKey        String    @unique
+  claimCode     String    @unique
+  claimedAt     DateTime?
+  twitterHandle String?
+  lastPixelAt   DateTime?
+  pixelsPlaced  Int       @default(0)
+  createdAt     DateTime  @default(now())
+  pixels        Pixel[]
+  ownedPixels   PixelOwnership[]
+}
+
+model Pixel {
+  id        String   @id @default(cuid())
+  x         Int
+  y         Int
+  color     Int      // 0-31 color index
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  placedAt  DateTime @default(now())
+
+  @@index([x, y])
+  @@index([agentId])
+}
+
+model PixelOwnership {
+  x         Int
+  y         Int
+  color     Int
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id])
+  placedAt  DateTime
+
+  @@id([x, y])
+  @@index([agentId])
+}
+
+model Canvas {
+  id        String   @id @default("main")
+  data      Bytes    // 1M bytes, one byte per pixel
+  updatedAt DateTime @updatedAt
+}
+
+model Snapshot {
+  id        String   @id @default(cuid())
+  timestamp DateTime @default(now())
+  s3Key     String
+
+  @@index([timestamp])
+}
