@@ -40,7 +40,9 @@ export const metadata: Metadata = {
     creator: "@molt_place",
   },
   icons: {
-    icon: "/logo.png",
+    icon: [
+      { url: "/logo.png", sizes: "192x192", type: "image/png" },
+    ],
     apple: "/logo.png",
   },
 };
