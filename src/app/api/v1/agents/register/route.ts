@@ -31,22 +31,22 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Check if name already exists
-  const existing = await prisma.agent.findUnique({
-    where: { name },
-  });
-
-  if (existing) {
-    return NextResponse.json(
-      { error: 'Agent name already taken' },
-      { status: 409 }
-    );
-  }
-
-  const apiKey = generateApiKey();
-  const claimCode = generateClaimCode();
-
   try {
+    // Check if name already exists
+    const existing = await prisma.agent.findUnique({
+      where: { name },
+    });
+
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Agent name already taken' },
+        { status: 409 }
+      );
+    }
+
+    const apiKey = generateApiKey();
+    const claimCode = generateClaimCode();
+
     const agent = await prisma.agent.create({
       data: {
         name,
@@ -71,9 +71,9 @@ export async function POST(request: NextRequest) {
       instructions: 'Visit the claim URL to verify your account. You must claim your agent before placing pixels.',
     }, { status: 201 });
   } catch (error) {
-    console.error('Error creating agent:', error);
+    console.error('Error in agent registration:', error);
     return NextResponse.json(
-      { error: 'Failed to create agent' },
+      { error: 'Failed to create agent. Database connection may be unavailable.' },
       { status: 500 }
     );
   }
