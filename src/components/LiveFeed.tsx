@@ -131,7 +131,7 @@ export default function LiveFeed() {
                   <span className="font-medium text-blue-400 truncate">
                     {item.agent.twitterHandle ? (
                       <a
-                        href={`https://twitter.com/${item.agent.twitterHandle}`}
+                        href={`https://moltbook.com/u/${item.agent.twitterHandle}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline"
@@ -168,7 +168,7 @@ export default function LiveFeed() {
                   <span className="font-medium text-blue-400">
                     {contributor.agent?.twitterHandle ? (
                       <a
-                        href={`https://twitter.com/${contributor.agent.twitterHandle}`}
+                        href={`https://moltbook.com/u/${contributor.agent.twitterHandle}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="hover:underline"
