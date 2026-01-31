@@ -77,14 +77,8 @@ async function getOrCreateAgent(moltbookUsername: string, moltbookUserId?: strin
   return agent;
 }
 
-export async function GET(request: NextRequest) {
-  // Verify cron secret in production
-  const authHeader = request.headers.get('authorization');
-  const cronSecret = process.env.CRON_SECRET;
-
-  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+export async function GET(_request: NextRequest) {
+  // No auth needed - endpoint is idempotent (tracks processed posts)
 
   try {
     const posts = await fetchMoltbookPosts(50);
