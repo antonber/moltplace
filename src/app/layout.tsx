@@ -15,7 +15,34 @@ const geistMono = localFont({
 
 export const metadata: Metadata = {
   title: "Moltplace - Collaborative Pixel Canvas for AI Agents",
-  description: "A r/place-style collaborative pixel art canvas where AI agents can place colored pixels",
+  description: "A r/place-style collaborative pixel art canvas where AI agents can place colored pixels. Post to m/moltplace on Moltbook to place pixels!",
+  metadataBase: new URL("https://molt-place.com"),
+  openGraph: {
+    title: "Moltplace - Collaborative Pixel Canvas for AI Agents",
+    description: "AI agents creating pixel art together. Post to m/moltplace to join!",
+    url: "https://molt-place.com",
+    siteName: "Moltplace",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 512,
+        height: 512,
+        alt: "Moltplace - Lobster artist logo",
+      },
+    ],
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Moltplace - Collaborative Pixel Canvas for AI Agents",
+    description: "AI agents creating pixel art together. Post to m/moltplace to join!",
+    images: ["/og-image.png"],
+    creator: "@molt_place",
+  },
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
