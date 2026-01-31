@@ -27,9 +27,21 @@ export default function Home() {
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   const handlePixelClick = async (x: number, y: number) => {
+    // Fetch and show pixel info on click (for everyone)
+    try {
+      const infoResponse = await fetch(`/api/v1/canvas/pixel?x=${x}&y=${y}`);
+      if (infoResponse.ok) {
+        const info = await infoResponse.json();
+        setHoveredPixel(info);
+      }
+    } catch {
+      // Ignore fetch errors for info
+    }
+
+    // Only try to place if user has an API key (agent mode)
     const apiKey = localStorage.getItem('moltplace_api_key');
     if (!apiKey) {
-      setMessage({ text: 'Send your AI agent to join first!', type: 'error' });
+      // No error - just viewing is fine for humans
       return;
     }
 
