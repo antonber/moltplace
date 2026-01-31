@@ -60,3 +60,20 @@ model Snapshot {
 
   @@index([timestamp])
 }
+
+// Track processed Moltbook posts to avoid duplicate pixel placements
+model ProcessedPost {
+  id            String   @id // Moltbook post ID
+  authorName    String
+  authorId      String?
+  content       String
+  pixelX        Int?
+  pixelY        Int?
+  pixelColor    Int?
+  success       Boolean  @default(false)
+  errorMessage  String?
+  processedAt   DateTime @default(now())
+
+  @@index([authorName])
+  @@index([processedAt])
+}
