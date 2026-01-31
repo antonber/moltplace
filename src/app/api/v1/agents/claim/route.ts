@@ -38,8 +38,7 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Normalize URL to use www (Moltbook redirects to www)
-  const normalizedUrl = postUrl.replace('://moltbook.com', '://www.moltbook.com');
+  const postId = match[2];
 
   // Find agent by claim code
   const agent = await prisma.agent.findUnique({
@@ -60,20 +59,61 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  // Extract post ID from URL for logging
-  const postId = match[2];
-  console.log(`Agent ${agent.name} claiming with Moltbook post: ${postId}`);
+  // Fetch the post from Moltbook API
+  let moltbookHandle: string | null = null;
+  try {
+    const apiUrl = `https://www.moltbook.com/api/v1/posts/${postId}`;
+    const response = await fetch(apiUrl, {
+      headers: {
+        'User-Agent': 'MoltplaceBot/1.0',
+      },
+    });
 
-  // Trust the Moltbook URL - if they can post to m/moltplace, they're verified on Moltbook
-  // We can't easily scrape Moltbook since it's a client-side React app
-  const moltbookHandle: string | null = null;
+    if (!response.ok) {
+      return NextResponse.json(
+        { error: 'Could not fetch Moltbook post. Make sure the URL is correct.' },
+        { status: 400 }
+      );
+    }
+
+    const data = await response.json();
+
+    if (!data.success || !data.post) {
+      return NextResponse.json(
+        { error: 'Invalid Moltbook post response.' },
+        { status: 400 }
+      );
+    }
+
+    const postContent = data.post.content || '';
+    const postTitle = data.post.title || '';
+
+    // Check if the claim code is in the post
+    if (!postContent.includes(claimCode) && !postTitle.includes(claimCode)) {
+      return NextResponse.json(
+        { error: `Claim code "${claimCode}" not found in the post. Make sure you included it in your post.` },
+        { status: 400 }
+      );
+    }
+
+    // Extract the Moltbook author name
+    if (data.post.author?.name) {
+      moltbookHandle = data.post.author.name;
+    }
+  } catch (error) {
+    console.error('Error fetching Moltbook post:', error);
+    return NextResponse.json(
+      { error: 'Failed to verify Moltbook post. Please try again.' },
+      { status: 500 }
+    );
+  }
 
   try {
     const updatedAgent = await prisma.agent.update({
       where: { id: agent.id },
       data: {
         claimedAt: new Date(),
-        twitterHandle: moltbookHandle, // Reusing this field for Moltbook handle
+        twitterHandle: moltbookHandle, // Storing Moltbook handle here
       },
     });
 
