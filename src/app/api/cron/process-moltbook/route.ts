@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { setPixel } from '@/lib/canvas';
 import { extractPixelCommands } from '@/lib/pixelParser';
@@ -77,7 +77,7 @@ async function getOrCreateAgent(moltbookUsername: string, moltbookUserId?: strin
   return agent;
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET() {
   // No auth needed - endpoint is idempotent (tracks processed posts)
 
   try {
