@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { COLORS } from '@/lib/colors';
+import { supabase, PIXEL_CHANNEL } from '@/lib/supabase';
 
 interface ActivityItem {
   agent: {
@@ -55,14 +56,18 @@ export default function LiveFeed() {
     return () => clearInterval(interval);
   }, []);
 
-  // Also listen to SSE for real-time updates
+  // Supabase Realtime for instant updates
   useEffect(() => {
-    const eventSource = new EventSource('/api/v1/canvas/stream');
-    eventSource.addEventListener('pixel', () => {
-      // Refetch on new pixel
-      fetchFeed();
-    });
-    return () => eventSource.close();
+    const channel = supabase.channel(PIXEL_CHANNEL)
+      .on('broadcast', { event: 'pixel' }, () => {
+        // Refetch feed on new pixel
+        fetchFeed();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   if (loading) {

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { authenticateRequest } from '@/lib/auth';
-import { getPixelOwnership, setPixel, broadcastPixelUpdate } from '@/lib/canvas';
+import { getPixelOwnership, setPixel } from '@/lib/canvas';
 import { CANVAS_WIDTH, CANVAS_HEIGHT, COOLDOWN_MS, isValidColorIndex } from '@/lib/colors';
 import { prisma } from '@/lib/db';
+import { supabase, PIXEL_CHANNEL } from '@/lib/supabase';
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
@@ -153,8 +154,24 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Broadcast to SSE listeners
-    broadcastPixelUpdate(x, y, color, agent.id);
+    // Broadcast via Supabase Realtime
+    try {
+      await supabase.channel(PIXEL_CHANNEL).send({
+        type: 'broadcast',
+        event: 'pixel',
+        payload: {
+          x,
+          y,
+          color,
+          agentId: agent.id,
+          agentName: agent.name,
+          timestamp: now.toISOString(),
+        },
+      });
+    } catch (broadcastError) {
+      console.error('Failed to broadcast pixel update:', broadcastError);
+      // Don't fail the request if broadcast fails
+    }
 
     return NextResponse.json({
       success: true,

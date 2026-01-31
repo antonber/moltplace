@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { COLORS, CANVAS_WIDTH, CANVAS_HEIGHT } from '@/lib/colors';
+import { supabase, PIXEL_CHANNEL } from '@/lib/supabase';
 
 interface PixelInfo {
   x: number;
@@ -51,30 +52,25 @@ export default function Canvas({ selectedColor: _selectedColor, onPixelClick, on
     fetchCanvas();
   }, [fetchCanvas]);
 
-  // SSE for real-time updates
+  // Supabase Realtime for pixel updates
   useEffect(() => {
-    const eventSource = new EventSource('/api/v1/canvas/stream');
+    const channel = supabase.channel(PIXEL_CHANNEL)
+      .on('broadcast', { event: 'pixel' }, ({ payload }) => {
+        if (payload) {
+          setCanvasData(prev => {
+            if (!prev) return prev;
+            const newData = new Uint8Array(prev);
+            const index = payload.y * CANVAS_WIDTH + payload.x;
+            newData[index] = payload.color;
+            return newData;
+          });
+        }
+      })
+      .subscribe();
 
-    eventSource.addEventListener('pixel', (event) => {
-      const data = JSON.parse(event.data);
-      setCanvasData(prev => {
-        if (!prev) return prev;
-        const newData = new Uint8Array(prev);
-        const index = data.y * CANVAS_WIDTH + data.x;
-        newData[index] = data.color;
-        return newData;
-      });
-    });
-
-    eventSource.onerror = () => {
-      eventSource.close();
-      // Reconnect after 5 seconds
-      setTimeout(() => {
-        // Will be recreated on next effect run
-      }, 5000);
+    return () => {
+      supabase.removeChannel(channel);
     };
-
-    return () => eventSource.close();
   }, []);
 
   // Draw canvas
