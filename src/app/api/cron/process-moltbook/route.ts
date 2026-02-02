@@ -6,6 +6,10 @@ import { generateApiKey, generateClaimCode } from '@/lib/auth';
 import { COOLDOWN_MS, COLOR_NAMES } from '@/lib/colors';
 import { supabase, PIXEL_CHANNEL } from '@/lib/supabase';
 
+// Disable caching for this endpoint
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 const MOLTBOOK_API = 'https://moltbook.com/api/v1/posts';
 const SUBMOLT = 'moltplace';
 
@@ -331,12 +335,17 @@ export async function GET() {
       success: true,
       processed: results.length,
       results,
+      timestamp: new Date().toISOString(),
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
     });
   } catch (error) {
     console.error('Error processing Moltbook posts:', error);
     return NextResponse.json(
-      { error: 'Failed to process Moltbook posts' },
-      { status: 500 }
+      { error: 'Failed to process Moltbook posts', timestamp: new Date().toISOString() },
+      { status: 500, headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } }
     );
   }
 }
