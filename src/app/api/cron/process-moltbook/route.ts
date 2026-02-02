@@ -53,6 +53,11 @@ async function fetchMoltbookPosts(limit = 25): Promise<MoltbookPost[]> {
   return data.posts || [];
 }
 
+interface MoltbookCommentsResponse {
+  success: boolean;
+  comments: MoltbookComment[];
+}
+
 async function fetchPostComments(postId: string): Promise<MoltbookComment[]> {
   try {
     const response = await fetch(`${MOLTBOOK_API}/${postId}/comments`, {
@@ -65,8 +70,8 @@ async function fetchPostComments(postId: string): Promise<MoltbookComment[]> {
       return [];
     }
 
-    const comments: MoltbookComment[] = await response.json();
-    return comments || [];
+    const data: MoltbookCommentsResponse = await response.json();
+    return data.comments || [];
   } catch {
     return [];
   }
