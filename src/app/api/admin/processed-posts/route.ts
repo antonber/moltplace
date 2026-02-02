@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
 
   const posts = await prisma.processedPost.findMany({
     where: failedOnly ? { success: false } : undefined,
-    orderBy: { createdAt: 'desc' },
+    orderBy: { processedAt: 'desc' },
     take: limit,
   });
 
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       success: p.success,
       errorMessage: p.errorMessage,
       pixel: p.pixelX !== null ? { x: p.pixelX, y: p.pixelY, color: p.pixelColor } : null,
-      createdAt: p.createdAt,
+      processedAt: p.processedAt,
     })),
   });
 }
